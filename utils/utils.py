@@ -3,24 +3,51 @@ import re
 import inspect
 import hydra
 
+
+def _api_key_from_cfg(cfg):
+    api_key = cfg.get("api_key", None)
+    if api_key == "INPUT_YOUR_OPENAI_API":
+        return None
+    return api_key
+
+
+def _client_kwargs(cfg, *names):
+    kwargs = {}
+    for name in names:
+        value = cfg.get(name, None)
+        if value is None:
+            continue
+        if name == "base_url" and value == "":
+            continue
+        kwargs[name] = value
+    return kwargs
+
+
 def init_client(cfg):
     global client
     if cfg.get("model", None): # for compatibility
         model: str = cfg.get("model")
+        model_lower = model.lower()
         temperature: float = cfg.get("temperature", 1.0)
-        if model.startswith("gpt"):
+        base_url = cfg.get("base_url", None)
+        api_key = _api_key_from_cfg(cfg)
+        openai_kwargs = {
+            **_client_kwargs(cfg, "base_url"),
+            "api_key": api_key,
+        }
+        if model_lower.startswith("gpt") or model_lower.startswith("o") or model_lower.startswith("qwen") or base_url:
             from utils.llm_client.openai import OpenAIClient
-            client = OpenAIClient(model, temperature)
-        elif cfg.model.startswith("GLM"):
+            client = OpenAIClient(model, temperature, **openai_kwargs)
+        elif model.startswith("GLM"):
             from utils.llm_client.zhipuai import ZhipuAIClient
-            client = ZhipuAIClient(model, temperature)
+            client = ZhipuAIClient(model, temperature, **openai_kwargs)
         else: # fall back to Llama API
             from utils.llm_client.llama_api import LlamaAPIClient
-            client = LlamaAPIClient(model, temperature)
+            client = LlamaAPIClient(model, temperature, **openai_kwargs)
     else:
         client = hydra.utils.instantiate(cfg.llm_client)
     return client
-    
+
 
 def file_to_string(filename):
     with open(filename, 'r') as file:
@@ -51,7 +78,7 @@ def block_until_running(stdout_filepath, log_status=False, iter_num=-1, response
 
 
 def extract_description(response: str) -> tuple[str, str]:
-    # Regex patterns to extract code description enclosed in GPT response, it starts with ‘<start>’ and ends with ‘<end>’
+    # Regex patterns to extract code description enclosed in GPT response, it starts with '<start>' and ends with '<end>'
     pattern_desc = [r'<start>(.*?)```python', r'<start>(.*?)<end>']
     for pattern in pattern_desc:
         desc_string = re.search(pattern, response, re.DOTALL)
@@ -79,7 +106,7 @@ def extract_code_from_generator(content):
                 break
         if start is not None and end is not None:
             code_string = '\n'.join(lines[start:end+1])
-    
+
     if code_string is None:
         return None
     # Add import statements if not present

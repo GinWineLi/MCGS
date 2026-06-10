@@ -10,6 +10,8 @@ from joblib import Parallel, delayed
 import re
 import concurrent.futures
 
+from .mcgs import individual_ids_from_context
+
 
 class InterfaceEC():
     def __init__(self, m, api_endpoint, api_key, llm_model, debug_mode, interface_prob, select, n_p, timeout, use_numba,
@@ -56,6 +58,8 @@ class InterfaceEC():
         return False
 
     def check_duplicate(self, population, code):
+        if isinstance(population, dict):
+            population = list(population.get("maternal_path", [])) + list(population.get("paternal_top_k", []))
         for ind in population:
             if code == ind['code']:
                 return True
@@ -96,6 +100,7 @@ class InterfaceEC():
             'objective': None,
             'other_inf': None
         }
+        parents = None
         if operator == "i1":
             parents = None
             [offspring['code'], offspring['thought']] = self.evol.i1()
@@ -127,6 +132,10 @@ class InterfaceEC():
             print(f"Evolution operator [{operator}] has not been implemented ! \n")
 
         offspring['algorithm'] = self.evol.post_thought(offspring['code'], offspring['thought'])
+        offspring['prompt_parent_ids'] = individual_ids_from_context(parents)
+        if operator == "s1" and isinstance(parents, dict):
+            offspring['s1_maternal_context_ids'] = list(parents.get("maternal_path_ids", []))
+            offspring['s1_paternal_context_ids'] = list(parents.get("paternal_top_k_ids", []))
         return parents, offspring
 
     def get_offspring(self, pop, operator, father=None):

@@ -17,3 +17,9 @@ max_fe: 1000 # maximum number of function evaluations
 pop_size: 10 # population size for GA
 init_pop_size: 4 # initial population size for GA
 timeout: 60 # timeout for evaluation of a single heuristic
+# MCGS lineage and UCT controls. They are ignored by algorithm=mcts_ahd.
+s1_reference_top_k: 3 # top-k direct paternal references exposed to s1
+dual_lineage_backup: false # credit evaluated rewards to direct paternal references
+uct_value_mode: maternal_only # maternal_only / dual_max / paternal_only
+paternal_reward_discount: 0.5 # discount used before paternal credit backup
+paternal_credit_depth: 1 # currently only direct paternal references are supported

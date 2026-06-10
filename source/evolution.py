@@ -154,19 +154,36 @@ The description must be inside a brace outside the code implementation. Next, im
                          + self.prompt_other_inf + "\n" + "Do not give additional explanations."
         return prompt_content
 
-    def get_prompt_s1(self, indivs):
-        prompt_indiv = ""
-        for i in range(len(indivs)):
-            prompt_indiv = prompt_indiv + "No." + str(
-                i + 1) + " algorithm's description, its corresponding code and its objective value are: \n" + \
-                           indivs[i]['algorithm'] + "\n" + indivs[i][
-                               'code'] + "\n" + f"Objective value: {indivs[i]['objective']}" + "\n\n"
+    def get_prompt_s1(self, context):
+        if isinstance(context, dict):
+            maternal_path = context.get("maternal_path", [])
+            paternal_top_k = context.get("paternal_top_k", [])
+        else:
+            maternal_path = list(context)
+            paternal_top_k = []
+
+        def format_group(title, prefix, individuals):
+            text = title + "\n"
+            if not individuals:
+                return text + "(none)\n\n"
+            for index, individual in enumerate(individuals):
+                text += (
+                    f"[{prefix}{index}] Node ID: {individual.get('node_id', 'unknown')}\n"
+                    f"Algorithm description: {individual['algorithm']}\n"
+                    f"Code:\n{individual['code']}\n"
+                    f"Objective value: {individual['objective']}\n\n"
+                )
+            return text
+
+        prompt_indiv = format_group("Maternal Path Nodes (root-to-current order):", "M", maternal_path)
+        prompt_indiv += format_group("Paternal Reference Nodes (top-scoring direct references):", "P", paternal_top_k)
+        total = len(maternal_path) + len(paternal_top_k)
 
         prompt_content = self.prompt_task + "\n" \
                                             "I have " + str(
-            len(indivs)) + " existing algorithms with their codes and objective values as follows: \n\n" \
+            total) + " existing algorithms from two lineage roles as follows: \n\n" \
                          + prompt_indiv + \
-                         f"Please help me create a new algorithm that is inspired by all the above algorithms with its objective value lower than any of them.\n" \
+                         "Please create a new algorithm by synthesizing useful ideas from both the maternal path and the paternal reference nodes. The new algorithm should have an objective value lower than any provided algorithm.\n" \
                          "Firstly, list some ideas in the provided algorithms that are clearly helpful to a better algorithm. Secondly, based on the listed ideas, describe the design idea and main steps of your new algorithm in one sentence. \
 The description must be inside a brace. Thirdly, implement it in Python as a function named \
 '" + self.prompt_func_name + "'.\nThis function should accept " + str(

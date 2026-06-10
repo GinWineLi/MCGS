@@ -21,6 +21,15 @@ class Paras():
         self.ec_m = 2
         self.ec_operator_weights = [0, 1, 2, 2, 1]  # weights for operators default = [0,1,k,k,1], default = [0,1,2,2,1]
 
+        #######################
+        ###  MCGS settings  ###
+        #######################
+        self.s1_reference_top_k = 3
+        self.dual_lineage_backup = False
+        self.uct_value_mode = 'maternal_only'
+        self.paternal_reward_discount = 0.5
+        self.paternal_credit_depth = 1
+
         #####################
         ### LLM settings  ###
         #####################

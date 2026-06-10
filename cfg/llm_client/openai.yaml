@@ -3,3 +3,4 @@ _target_: utils.llm_client.openai.OpenAIClient
 model: gpt-4o-mini # LLM model
 temperature: 1.0  # temperature for chat completion
 api_key: "INPUT_YOUR_OPENAI_API"
+base_url: null # Set this for OpenAI-compatible local or Qwen endpoints
