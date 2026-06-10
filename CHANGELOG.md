@@ -1,5 +1,16 @@
 # 更新日志
 
+## 2026-06-10 16:25 - 支持同问题并行运行 MCTS-AHD 与 MCGS 策略
+
+- 更新时间：2026-06-10 16:25 CST
+- 更新记录：修复同一问题多进程运行时共享 `gpt.py` 导致候选评估互相覆盖的问题，并补充远程部署与四路并行运行说明。
+- 更新内容：
+  - `problem_adapter.py`: 每个候选评估改为在当前 Hydra run 的 `evaluations/` 子目录生成独立 `gpt.py`，通过 bootstrap 优先加载隔离模块。
+  - `main.py`: 最终验证改为使用 run 目录内的 `final_validation/gpt.py`，并按问题类型选择 `eval.py` 或 `eval_black_box.py`。
+  - `README.md`: 新增 GitHub 远程部署步骤、OpenAI-compatible 配置示例，以及 MCTS-AHD 加 MCGS 三种 UCT 策略的并行运行命令。
+- 验证情况：已运行 `python -m compileall main.py problem_adapter.py source`、`conda run -n mcts-ahd python main.py --help`、`conda run -n mcts-ahd python main.py --cfg job algorithm=mcgs dual_lineage_backup=true uct_value_mode=dual_max max_fe=1`、`git diff --check`，并用隔离 `gpt.py` 完成 `tsp_constructive/eval.py` 训练集 bootstrap 烟测。
+- Git 提交：fix(parallel): 隔离候选评估文件以支持并行运行
+
 ## 2026-06-10 14:46 - 迁移 CO-Bench MCGS 到原 MCTS-AHD 仓库
 
 - 更新时间：2026-06-10 14:46 CST

@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 from utils.utils import init_client
 from ahd_adapter import AHD as LHH
+from problem_adapter import Problem
 
 ROOT_DIR = os.getcwd()
 logging.basicConfig(level=logging.INFO)
@@ -26,14 +27,30 @@ def main(cfg):
     logging.info(f"Best Code Overall: {best_code_overall}")
     logging.info(f"Best Code Path Overall: {best_code_path_overall}")
     
-    # Run validation and redirect stdout to a file "best_code_overall_stdout.txt"
-    with open(f"{ROOT_DIR}/problems/{cfg.problem.problem_name}/gpt.py", 'w') as file:
+    # Run validation with an isolated gpt.py so parallel Hydra jobs do not
+    # overwrite each other's problem source file.
+    validation_dir = workspace_dir / "final_validation"
+    validation_dir.mkdir(exist_ok=True)
+    validation_code_path = validation_dir / "gpt.py"
+    with open(validation_code_path, 'w') as file:
         file.writelines(best_code_overall + '\n')
-    test_script = f"{ROOT_DIR}/problems/{cfg.problem.problem_name}/eval.py"
+    eval_script = "eval_black_box.py" if cfg.problem.problem_type == "black_box" else "eval.py"
+    test_script = f"{ROOT_DIR}/problems/{cfg.problem.problem_name}/{eval_script}"
     test_script_stdout = "best_code_overall_val_stdout.txt"
     logging.info(f"Running validation script...: {test_script}")
     with open(test_script_stdout, 'w') as stdout:
-        subprocess.run(["python", test_script, "-1", ROOT_DIR, "val"], stdout=stdout)
+        subprocess.run(
+            Problem.eval_bootstrap_command(
+                str(validation_dir.resolve()),
+                test_script,
+                "-1",
+                ROOT_DIR,
+                "val",
+            ),
+            stdout=stdout,
+            stderr=stdout,
+            check=False,
+        )
     logging.info(f"Validation script finished. Results are saved in {test_script_stdout}.")
     
     # Print the results

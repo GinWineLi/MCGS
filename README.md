@@ -42,7 +42,67 @@ Change parameter $\lambda_0$ in <a href="source/mcts.py">source/mcts.py</a>
 
 set cfg/config.yaml and run main.py for heuristic evaluations.
 
-**If you want to run several evaluations simultaneously, please create multiple environments, including copied problems and prompts, and a copied cfg file in cfg/problems with changing the problem name** (See tsp_constructive_copy for reference)
+Basic run:
+
+```bash
+python main.py
+```
+
+Run MCGS:
+
+```bash
+python main.py algorithm=mcgs dual_lineage_backup=true uct_value_mode=dual_max
+```
+
+Run MCTS-AHD and the three MCGS UCT strategies in parallel. Use separate
+`hydra.run.dir` values so logs and output JSON files are easy to compare:
+
+```bash
+RUN_ID=$(date +%Y%m%d-%H%M%S)
+
+python main.py algorithm=mcts_ahd \
+  hydra.run.dir=outputs/parallel_${RUN_ID}/mcts_ahd &
+
+python main.py algorithm=mcgs dual_lineage_backup=true uct_value_mode=maternal_only \
+  hydra.run.dir=outputs/parallel_${RUN_ID}/mcgs_maternal_only &
+
+python main.py algorithm=mcgs dual_lineage_backup=true uct_value_mode=dual_max \
+  hydra.run.dir=outputs/parallel_${RUN_ID}/mcgs_dual_max &
+
+python main.py algorithm=mcgs dual_lineage_backup=true uct_value_mode=paternal_only \
+  hydra.run.dir=outputs/parallel_${RUN_ID}/mcgs_paternal_only &
+
+wait
+```
+
+The runner evaluates generated candidates from an isolated `gpt.py` under each
+Hydra run directory, so concurrent runs of the same problem do not overwrite
+`problems/<problem>/gpt.py`.
+
+### Remote Deployment
+
+Clone and run on a remote Linux server:
+
+```bash
+git clone https://github.com/GinWineLi/MCGS.git
+cd MCGS
+
+conda create -n mcts-ahd python=3.11 -y
+conda activate mcts-ahd
+pip install -r requirements.txt
+
+export OPENAI_API_KEY="YOUR_KEY"
+python main.py llm_client.api_key="$OPENAI_API_KEY"
+```
+
+For OpenAI-compatible providers, set both key and base URL:
+
+```bash
+python main.py \
+  llm_client.api_key="$OPENAI_API_KEY" \
+  llm_client.base_url="https://your-compatible-endpoint/v1" \
+  llm_client.model="gpt-4o-mini"
+```
 
 ### Report Runs
 

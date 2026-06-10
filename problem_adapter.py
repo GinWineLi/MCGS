@@ -3,6 +3,7 @@ import os
 import subprocess
 import re
 from typing import List, Any
+from pathlib import Path
 
 from utils.utils import block_until_running, file_to_string, filter_traceback
 
@@ -66,7 +67,6 @@ class Problem:
         self.problem_size = self.config.problem.problem_size
         self.obj_type = self.config.problem.obj_type
         self.problem_type = self.config.problem.problem_type
-        self.output_file = f"{self.root_dir}/problems/{self.problem}/gpt.py"
 
         if self.problem_type == "tsp_constructive":
             from .original.prompts.tsp_greedy import GetPrompts
@@ -81,26 +81,42 @@ class Problem:
         """
         Convert response to individual
         """
-        outdir = './evaluations/'
-        if not os.path.isdir(outdir):
-            os.mkdir(outdir)
+        outdir = Path('./evaluations')
+        outdir.mkdir(exist_ok=True)
         runid = hash(code)
-        # Write response to file
-        file_name = outdir + f"problem_eval{runid}.txt" if file_name is None else file_name + ".txt"
+        eval_dir = outdir / f"problem_eval{runid}_{os.getpid()}_{response_id}"
+        eval_dir.mkdir(exist_ok=True)
+
+        file_name = eval_dir / "response.txt" if file_name is None else Path(file_name + ".txt")
         with open(file_name, 'w', encoding='utf-8') as file:
             file.writelines(code + '\n')
 
-        # Extract code and description from response
-        std_out_filepath = outdir + f"problem_eval{runid}_stdout.txt" if file_name is None else file_name.rstrip(
-            ".txt") + "_stdout.txt"
+        code_path = eval_dir / "gpt.py"
+        with open(code_path, 'w', encoding='utf-8') as file:
+            file.writelines(code + '\n')
+
+        std_out_filepath = eval_dir / "stdout.txt"
 
         individual = {
-            "stdout_filepath": std_out_filepath,
-            "code_path": outdir + f"problem_eval{runid}_code.py",
+            "stdout_filepath": str(std_out_filepath),
+            "code_path": str(code_path),
+            "module_dir": str(eval_dir.resolve()),
             "code": code,
             "response_id": response_id,
         }
         return individual
+
+    @staticmethod
+    def eval_bootstrap_command(module_dir: str, file_path: str, problem_size: str, root_dir: str, mood: str) -> list[str]:
+        bootstrap = (
+            "import pathlib, runpy, sys; "
+            "module_dir, file_path, problem_size, root_dir, mood = sys.argv[1:6]; "
+            "sys.path.insert(0, module_dir); "
+            "sys.path.insert(1, str(pathlib.Path(file_path).resolve().parent)); "
+            "sys.argv = [file_path, problem_size, root_dir, mood]; "
+            "runpy.run_path(file_path, run_name='__main__')"
+        )
+        return ['python', '-u', '-c', bootstrap, module_dir, file_path, problem_size, root_dir, mood]
 
     def mark_invalid_individual(self, individual: dict, traceback_msg: str) -> dict:
         """
@@ -133,14 +149,19 @@ class Problem:
             try:
                 logging.debug(f"Iteration {self.iteration}: Processing Code Run {runid}")
 
-                with open(self.output_file, 'w', encoding = 'utf-8') as file:
-                    file.writelines(individual["code"] + '\n')
-
-                # Execute the python file with flags
                 with open(individual["stdout_filepath"], 'w') as f:
                     file_path = f'{self.root_dir}/problems/{self.problem}/eval.py' if self.problem_type != "black_box" else f'{self.root_dir}/problems/{self.problem}/eval_black_box.py'
                     inner_run = process = subprocess.Popen(
-                        ['python', '-u', file_path, f'{self.problem_size}', self.root_dir, "train"], stdout=f, stderr=f)
+                        self.eval_bootstrap_command(
+                            individual["module_dir"],
+                            file_path,
+                            f'{self.problem_size}',
+                            self.root_dir,
+                            "train",
+                        ),
+                        stdout=f,
+                        stderr=f,
+                    )
 
                 block_until_running(individual["stdout_filepath"], log_status=True)
                 inner_runs.append(process)
