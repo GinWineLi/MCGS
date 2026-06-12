@@ -1,5 +1,14 @@
 # 更新日志
 
+## 2026-06-12 10:00 - 独立保存批量实验日志
+
+- 更新时间：2026-06-12 10:00 CST
+- 更新记录：让批量实验脚本为每个问题和算法组合自动保存独立主进程日志，便于并发运行后定位失败原因。
+- 更新内容：
+  - `scripts/run_batch_experiments.sh`: 每个实验启动前创建输出目录，并将对应 `python main.py` 的 stdout/stderr 写入该实验目录下的 `run.log`；终端保留 START/DONE/FAILED 摘要并在失败汇总中打印日志路径。
+- 验证情况：已运行 `bash -n scripts/run_batch_experiments.sh`、`git diff --check`。
+- Git 提交：feat(scripts): 保存批量实验独立日志
+
 ## 2026-06-12 09:51 - 添加批量实验脚本
 
 - 更新时间：2026-06-12 09:51 CST

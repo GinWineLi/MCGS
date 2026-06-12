@@ -71,7 +71,10 @@ run_one() {
   local problem="$1"
   local variant="$2"
   local outdir="outputs/batch_${RUN_ID}/${PROBLEM_SET}/${problem}/${variant}"
+  local logfile="${outdir}/run.log"
   local cmd=(python main.py "problem=${problem}" "${COMMON_OVERRIDES[@]}" "hydra.run.dir=${outdir}")
+
+  mkdir -p "$outdir"
 
   case "$variant" in
     mcgs_dual_max)
@@ -89,9 +92,17 @@ run_one() {
       ;;
   esac
 
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] START ${problem} ${variant} -> ${outdir}"
-  "${cmd[@]}"
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] DONE  ${problem} ${variant}"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] START ${problem} ${variant} -> ${outdir} (log: ${logfile})"
+  {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Problem: ${problem}"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Variant: ${variant}"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Model: ${MODEL_NAME}"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Output: ${outdir}"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] API key: <redacted>"
+    "${cmd[@]}"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] DONE ${problem} ${variant}"
+  } > "$logfile" 2>&1
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] DONE  ${problem} ${variant} (log: ${logfile})"
 }
 
 echo "RUN_ID=${RUN_ID}"
@@ -107,9 +118,10 @@ for problem in "${PROBLEMS[@]}"; do
     status_file="${STATUS_DIR}/${problem}_${variant}.status"
     (
       if run_one "$problem" "$variant"; then
-        echo "ok" > "$status_file"
+        echo "ok outputs/batch_${RUN_ID}/${PROBLEM_SET}/${problem}/${variant}/run.log" > "$status_file"
       else
-        echo "failed" > "$status_file"
+        echo "failed outputs/batch_${RUN_ID}/${PROBLEM_SET}/${problem}/${variant}/run.log" > "$status_file"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED ${problem} ${variant} (log: outputs/batch_${RUN_ID}/${PROBLEM_SET}/${problem}/${variant}/run.log)" >&2
       fi
     ) &
 
@@ -121,9 +133,9 @@ done
 
 wait
 
-if grep -Rqx "failed" "$STATUS_DIR"; then
+if grep -Rq "^failed " "$STATUS_DIR"; then
   echo "One or more batch experiments failed:" >&2
-  grep -Rxl "failed" "$STATUS_DIR" | sed "s#${STATUS_DIR}/#  - #; s#\\.status\$##" >&2
+  grep -Rh "^failed " "$STATUS_DIR" | sed "s#^failed #  - #" >&2
   exit 1
 fi
 
