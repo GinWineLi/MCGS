@@ -1,5 +1,14 @@
 # 更新日志
 
+## 2026-06-12 09:51 - 添加批量实验脚本
+
+- 更新时间：2026-06-12 09:51 CST
+- 更新记录：新增可并发运行 MCGS dual-max、MCGS maternal-only 与 MCTS-AHD 的批量实验脚本，覆盖 TSP、KP、CVRP、MKP 与 Offline BPP。
+- 更新内容：
+  - `scripts/run_batch_experiments.sh`: 新增批量运行入口，支持 `JOBS` 控制并发、`PROBLEM_SET=standard|black_box` 切换问题配置、`MAX_FE` 与 `EXTRA_OVERRIDES` 追加 Hydra 参数，并按 run/problem/variant 隔离输出目录。
+- 验证情况：已运行 `bash -n scripts/run_batch_experiments.sh`、`git diff --check`。
+- Git 提交：feat(scripts): 添加批量实验运行脚本
+
 ## 2026-06-10 16:25 - 支持同问题并行运行 MCTS-AHD 与 MCGS 策略
 
 - 更新时间：2026-06-10 16:25 CST
