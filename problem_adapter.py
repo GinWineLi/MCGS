@@ -113,6 +113,7 @@ class Problem:
             "module_dir, file_path, problem_size, root_dir, mood = sys.argv[1:6]; "
             "sys.path.insert(0, module_dir); "
             "sys.path.insert(1, str(pathlib.Path(file_path).resolve().parent)); "
+            "sys.path.insert(2, root_dir); "
             "sys.argv = [file_path, problem_size, root_dir, mood]; "
             "runpy.run_path(file_path, run_name='__main__')"
         )
